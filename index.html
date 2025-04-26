@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoService Finder</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Encontre Serviços Automotivos</h1>
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Ex: Av. Paulista, 1000">
+            <button id="searchBtn">Buscar</button>
+        </div>
+        <div id="map"></div>
+        <div id="results" class="results-container"></div>
+    </div>
+
+    <!-- Substitua SUA_CHAVE_API pela sua chave real -->
+    <script src="app.js"></script>
+    <script async defer
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD9F_kG9-WXxCeLYjR2pqv7hkbGVzRT72Y&libraries=places&callback=initMap">
+    </script>
+</body>
+</html>
