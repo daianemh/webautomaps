@@ -2,21 +2,23 @@ let map;
 let service;
 let infowindow;
 let userLocation;
+let currentMarkers = []; // Armazena marcadores para limpeza correta
 
-function initMap() {
-    // Fallback para caso a geolocalização falhe
+async function initMap() {
     const defaultLocation = { lat: -23.533773, lng: -46.625290 }; // São Paulo
     
-    // Configuração inicial do mapa
+    // Importa a biblioteca de marcadores avançados por segurança e performance
+    const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
+
     map = new google.maps.Map(document.getElementById('map'), {
         center: defaultLocation,
-        zoom: 13
+        zoom: 13,
+        mapId: "DEMO_MAP_ID" // Necessário para AdvancedMarkerElement. Substitua pelo seu Map ID real.
     });
 
     infowindow = new google.maps.InfoWindow();
     service = new google.maps.places.PlacesService(map);
 
-    // Tenta geolocalização do usuário
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             (position) => {
@@ -35,23 +37,22 @@ function initMap() {
         handleLocationError(false, defaultLocation);
     }
 
-    // Adiciona evento ao botão
     document.getElementById('searchBtn').addEventListener('click', searchServices);
 }
 
 function handleLocationError(browserHasGeolocation, pos) {
-    console.log(browserHasGeolocation ?
-        "Usuário negou geolocalização" :
-        "Navegador não suporta geolocalização");
+    console.warn(browserHasGeolocation ?
+        "Usuário negou geolocalização ou timeout." :
+        "Navegador não suporta geolocalização.");
     map.setCenter(pos);
     searchAutomotiveServices(pos);
 }
 
 function searchServices() {
-    const input = document.getElementById('searchInput').value;
+    const input = document.getElementById('searchInput').value.trim();
     
     if (!input) {
-        alert("Digite uma localização");
+        alert("Por favor, digite uma localização válida.");
         return;
     }
 
@@ -62,7 +63,7 @@ function searchServices() {
             map.setCenter(results[0].geometry.location);
             searchAutomotiveServices(results[0].geometry.location);
         } else {
-            alert("Localização não encontrada: " + status);
+            alert("Localização não encontrada.");
             console.error("Geocoding error:", status);
         }
     });
@@ -71,22 +72,19 @@ function searchServices() {
 function searchAutomotiveServices(location) {
     const request = {
         location: location,
-        radius: '2000',
-        type: ['car_repair', 'car_wash', 'gas_station'],
-        fields: ['name', 'geometry', 'formatted_address', 'rating', 'website']
+        radius: 2000,
+        type: ['car_repair', 'car_wash', 'gas_station']
     };
 
     service.nearbySearch(request, (results, status) => {
         const resultsContainer = document.getElementById('results');
-        
+        resultsContainer.innerHTML = ''; // Limpeza segura de container de texto genérico
+
         if (status !== "OK") {
-            resultsContainer.innerHTML = `
-                <div class="error-message">
-                    Nenhum serviço encontrado (${status}).<br>
-                    Tente ampliar a área de busca.
-                </div>
-            `;
-            console.error("Places API error:", status);
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = `Nenhum serviço encontrado ou erro na busca (${status}).`;
+            resultsContainer.appendChild(errorDiv);
             return;
         }
 
@@ -96,30 +94,42 @@ function searchAutomotiveServices(location) {
 }
 
 function createMarkers(places) {
-    // Limpa marcadores anteriores
-    const markers = [];
+    // Limpa marcadores anteriores do mapa de forma segura
+    currentMarkers.forEach(marker => marker.setMap(null));
+    currentMarkers = [];
     
     places.forEach(place => {
         if (!place.geometry || !place.geometry.location) return;
 
-        const marker = new google.maps.Marker({
+        // Uso do AdvancedMarkerElement padrão do Google Maps
+        const marker = new google.maps.marker.AdvancedMarkerElement({
             map: map,
             position: place.geometry.location,
             title: place.name
         });
 
-        markers.push(marker);
+        currentMarkers.push(marker);
 
         marker.addListener('click', () => {
-            const content = `
-                <div class="info-window">
-                    <h3>${place.name}</h3>
-                    <p>${place.formatted_address || 'Endereço não disponível'}</p>
-                    ${place.rating ? `<p>⭐ ${place.rating}/5</p>` : ''}
-                    ${place.website ? `<a href="${place.website}" target="_blank">Site</a>` : ''}
-                </div>
-            `;
-            infowindow.setContent(content);
+            // Defesa contra XSS: Construindo os elementos InfoWindow via DOM, nunca injetando strings puras
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'info-window';
+
+            const title = document.createElement('h3');
+            title.textContent = place.name; // Escapa automaticamente caracteres maliciosos
+            infoDiv.appendChild(title);
+
+            const address = document.createElement('p');
+            address.textContent = place.vicinity || 'Endereço não disponível';
+            infoDiv.appendChild(address);
+
+            if (place.rating) {
+                const rating = document.createElement('p');
+                rating.textContent = `⭐ ${place.rating}/5`;
+                infoDiv.appendChild(rating);
+            }
+
+            infowindow.setContent(infoDiv);
             infowindow.open(map, marker);
         });
     });
@@ -127,24 +137,37 @@ function createMarkers(places) {
 
 function displayResults(places) {
     const resultsContainer = document.getElementById('results');
-    resultsContainer.innerHTML = '';
 
     places.forEach(place => {
         const card = document.createElement('div');
         card.className = 'service-card';
-        card.innerHTML = `
-            <h3>${place.name}</h3>
-            <p>${place.formatted_address}</p>
-            ${place.rating ? `<p>Classificação: ${place.rating}/5</p>` : ''}
-            <button onclick="showOnMap(${place.geometry.location.lat()}, ${place.geometry.location.lng()})">
-                Ver no Mapa
-            </button>
-        `;
+
+        const title = document.createElement('h3');
+        title.textContent = place.name;
+        card.appendChild(title);
+
+        const address = document.createElement('p');
+        address.textContent = place.vicinity || 'Endereço não especificado';
+        card.appendChild(address);
+
+        if (place.rating) {
+            const rating = document.createElement('p');
+            rating.textContent = `Classificação: ${place.rating}/5`;
+            card.appendChild(rating);
+        }
+
+        const button = document.createElement('button');
+        button.textContent = 'Ver no Mapa';
+        
+        // Evita manipulação inline invasiva de escopo (Segurança de Eventos)
+        const lat = place.geometry.location.lat();
+        const lng = place.geometry.location.lng();
+        button.addEventListener('click', () => {
+            map.setCenter({ lat, lng });
+            map.setZoom(16);
+        });
+        
+        card.appendChild(button);
         resultsContainer.appendChild(card);
     });
 }
-
-window.showOnMap = (lat, lng) => {
-    map.setCenter({ lat, lng });
-    map.setZoom(16);
-};
