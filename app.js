@@ -52,23 +52,39 @@ function searchServices() {
     const input = document.getElementById('searchInput').value.trim();
     
     if (!input) {
-        alert("Por favor, digite uma localização válida.");
+        alert("Por favor, digite uma localização (endereço, cidade ou ponto de referência).");
         return;
     }
 
     const geocoder = new google.maps.Geocoder();
     
+    // Passamos o endereço de entrada e tratamos o retorno de forma assíncrona/segura
     geocoder.geocode({ address: input }, (results, status) => {
-        if (status === "OK" && results[0]) {
-            map.setCenter(results[0].geometry.location);
-            searchAutomotiveServices(results[0].geometry.location);
+        if (status === "OK" && results && results[0]) {
+            const targetLocation = results[0].geometry.location;
+            
+            // Centraliza o mapa na localização encontrada
+            map.setCenter(targetLocation);
+            
+            // Ajusta o zoom para ficar mais próximo da cidade/bairro buscado
+            map.setZoom(14); 
+            
+            // Executa a busca pelos serviços automotivos passando as coordenadas exatas
+            searchAutomotiveServices(targetLocation);
         } else {
-            alert("Localização não encontrada.");
-            console.error("Geocoding error:", status);
+            // Tratamento de erro detalhado para diagnóstico de segurança e infraestrutura
+            console.error("Erro no Geocoding. Status retornado:", status);
+            
+            if (status === "REQUEST_DENIED") {
+                alert("Erro de permissão: Certifique-se de que a 'Geocoding API' está ativada no seu console Google Cloud.");
+            } else if (status === "ZERO_RESULTS") {
+                alert("Nenhum local encontrado com esse nome. Tente digitar de forma mais específica (Ex: Nome da Cidade, Estado).");
+            } else {
+                alert("Não foi possível encontrar a localização. Detalhes no console.");
+            }
         }
     });
 }
-
 function searchAutomotiveServices(location) {
     const request = {
         location: location,
