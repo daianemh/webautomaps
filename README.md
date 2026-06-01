@@ -51,3 +51,29 @@ Para que o projeto funcione localmente ou em produção, você precisará de uma
    <script async defer
        src="[https://maps.googleapis.com/maps/api/js?key=SUA_CHAVE_API&libraries=places,marker&callback=initMap](https://maps.googleapis.com/maps/api/js?key=SUA_CHAVE_API&libraries=places,marker&callback=initMap)">
    </script>
+
+```
+
+3. Substitua `SUA_CHAVE_API` pela sua chave gerada no painel do Google.
+4. Abra o arquivo `index.html` em qualquer navegador ou utilize extensões como o *Live Server* do VS Code.
+
+---
+
+## 🚨 Hardening: Como Proteger sua Chave de API em Produção
+
+Como esta é uma aplicação puramente front-end, a sua chave de API fica visível no código-fonte. **Para evitar que outras pessoas usem sua chave e gerem cobranças na sua conta**, configure as restrições no Console do Google Cloud:
+
+1. Acesse **APIs e Serviços > Credenciais** no Google Cloud.
+2. Edite a chave de API do projeto.
+3. Em **Restrições de aplicativos**, selecione **Websites (referenciadores HTTP)**.
+4. Adicione a URL do seu site (Ex: `https://meuprojeto.com/*` ou `http://localhost/*` para testes).
+5. Em **Restrições de API**, selecione "Restringir chave" e marque apenas as 3 APIs utilizadas (*Maps JavaScript*, *Places* e *Geocoding*).
+6. Salve as alterações (pode levar até 5 minutos para propagar na nuvem do Google).
+
+---
+
+## 📝 Licença
+
+Este projeto está sob a licença MIT. Sinta-se livre para usar, modificar e distribuir.
+
+```
